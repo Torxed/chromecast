@@ -22,3 +22,5 @@ Second thing is that the `.proto` file is just something that google created in 
 Which in turn is just a overengineered serializer for something that starts out as JSON data.
 
 tl;dr: `.proto` is just a `JSON` serializer.
+
+![flowchart](flowchart.png)

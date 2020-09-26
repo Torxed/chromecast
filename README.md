@@ -15,3 +15,11 @@ You can compile the `chromecast.proto` yourself. But this will be removed for a 
 For instance:
 
     python chromecast.py ZTidn2dBYbY
+
+# Note
+
+Two things, one, just use [pychromecast](https://github.com/home-assistant-libs/pychromecast) or [casttube](https://github.com/ur1katz/casttube). They're more fully fledged.<br>
+Second thing is that the `.proto` file is just something that google created in order to create the `.py` file. Which in short is just a meta-class constructor which handles your "protocol" (struct) definition.<br>
+Which in turn is just a overengineered serializer for something that starts out as JSON data.
+
+tl;dr: `.proto` is just a `JSON` serializer.

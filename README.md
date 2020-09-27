@@ -14,7 +14,7 @@ As vanilla as it gets, cast a youtube video to a chromecast without any dependen
     + [namespace](#namespace)
     + [payload_type](#payload_type)
     + [payload_utf8](#payload_utf8)
-- [Honorable mentions](#Honorable_mentions)
+- [Honorable mentions](#honorable-mentions)
 
 # Dependencies
 

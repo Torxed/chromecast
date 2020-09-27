@@ -42,7 +42,7 @@ It's essentially just a `struct` -> `bytes` serializer. I've included a very cru
     Variable type overview:
     | <field ID> | <Variable Type> | <Variable Data> |
 
-Below are two examples.
+Below are two examples describing the most common variables found in a chromecast session.
 
 ### `INT` variables with a field ID of 5:
 

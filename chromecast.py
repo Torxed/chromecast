@@ -6,8 +6,9 @@ import re
 import sys
 from socket import *
 from urllib import request, parse
+from collections import OrderedDict
 
-import chromecast_pb2 # Build this with: protoc --python_out=./ chromecast.proto
+#import chromecast_pb2 # Build this with: protoc --python_out=./ chromecast.proto
 
 APP_MEDIA_RECIEVER = 'CC1AD845' # Default media-player, eats anything more or less
 APP_YOUTUBE = '233637DE' # Youtube specific player
@@ -40,45 +41,180 @@ s = socket()
 s.connect(('172.16.13.3', 8009))
 ss = context.wrap_socket(s)
 
-def send(sock, endpoint, data):
-	frame = chromecast_pb2.CastMessage()
-	frame.protocol_version = frame.ProtocolVersion.CASTV2_1_0
-	frame.source_id = 'sender-0'
-	frame.destination_id = SESSION
-	frame.namespace = endpoint
-	frame.payload_type = 0
+def json_to_protobuf(data):
+	"""
+	Extremely simplified JSON -> ProtoBuf serializer.
+	It doesn't support dict lengths larger than 164 bytes in any given string field.
 
-	frame.payload_utf8 = json.dumps(data, ensure_ascii=False).encode("utf8")
-	ss.send(struct.pack(">I", frame.ByteSize()) + frame.SerializeToString())
+	src: https://developers.google.com/protocol-buffers/docs/encoding
+
+	Variable type overview:
+	| 0 | Integer |
+	| 2 | Length  | UTF-8 string |
+
+	If the length's first bit (10000000) is a ONE (1),
+	It means the length is greater than 127 and we need one more byte for the length,
+	as well as do some magic on the length (flip the order, remove MSB etc)
+	"""
+	# https://developers.google.com/protocol-buffers/docs/encoding
+	if type(data) != dict: data = json.loads(data)
+	sequence = list(data.items())
+
+	serialized = b''
+	for index, (key, val) in enumerate(sequence):
+		MSB = 0b00000000
+		#if len(sequence) == index+1:
+		#	MSB = 0b10000000
+
+		field_number = index + 1 << 3
+		if type(val) is int:
+			wire_type = 0b00000000
+
+			segment = struct.pack('B', val)
+		elif type(val) is str:
+			wire_type = 0b00000010
+
+			segment = struct.pack('B', len(val)) + bytes(val, 'UTF-8')
+
+		serialized += struct.pack('B', MSB|field_number|wire_type) + segment
+
+	# The length is not actually part of the ProtoBuf format,
+	# But since this function is souly used to send data,
+	# we include the leangth here so we don't have to deal with
+	# it on every packet we send.
+	return struct.pack(">I", len(serialized)) + serialized
+
+def protobuf_to_json(struct_map, data):
+	"""
+	Extremely simplified de-serializer from ProtoBuf -> JSON.
+	It doesn't support dict lengths larger than 65535 bytes in any given string field.
+	"""
+	key_map = list(struct_map.keys())
+	val_map = list(struct_map.values())
+	index = 0
+	data_index = 0
+
+	INT = 0
+	DOUBLE = 1
+	STRING = 2
+	# deprecated:
+	# 3 = start group
+	# 4 = end group
+	FLOAT = 5
+
+	result = OrderedDict()
+
+	while data_index < len(data):
+		identifier = data[data_index]
+		data_index += 1
+		MSB = identifier & 0b10000000
+		field_number = (identifier & 127) >> 3 # Remove MSB and remove wire_type
+		wire_type = identifier & 7
+
+		if wire_type == INT:
+			val = struct.unpack('B', data[data_index:data_index+1])[0]
+
+			data_index += 1
+			result[key_map[field_number-1]] = val_map[field_number-1](val)
+		elif wire_type == STRING:
+			length = struct.unpack('B', data[data_index:data_index+1])[0]
+			if length & 0b10000000: # MSB set
+				length = data[data_index:data_index+2]
+				length = bin(length[1] & 127)[2:].zfill(7) + bin(length[0] & 127)[2:].zfill(7)   # (MSB removal) -> Flip -> Combine: https://developers.google.com/protocol-buffers/docs/encoding#varints
+				length = int(length, 2)
+				data_index += 1
+			elif length & 0b10000000: # Check the second byte
+				length = struct.unpack('>I', data[data_index:data_index+4])[0]
+				data_index += 3
+				raise ValueError('Not yet implemented')
+			elif length & 0b10000000: # And so on, make this recursive.
+				length = ...
+				raise ValueError('Not yet implemented')
+
+			string = data[data_index+1:data_index+1+length]
+
+			data_index += 1 + length
+			result[key_map[field_number-1]] = val_map[field_number-1](string.decode('UTF-8'))
+		else:
+			break
+
+	return dict(result)
 
 def _format_session_params(_req_count, param_dict):
 	req_count = REQ_PREFIX.format(req_id=_req_count)
 	return {req_count + k if k.startswith("_") else k: v for k, v in param_dict.items()}
 
-send(ss, CONNECT_URL, {"type": "CONNECT"})
-send(ss, RECEIVER_URL, {"type": "GET_STATUS"})
-send(ss, RECEIVER_URL, {"type": "LAUNCH", "requestId": 1, "appId": APP_YOUTUBE})
+ss.send(json_to_protobuf({
+	'protocol_version' : 0,
+	'source_id' : 'sender-0',
+	'destination_id' : SESSION,
+	'namespace' : CONNECT_URL,
+	'payload_type' : 0,
+	'payload_utf8' : json.dumps({"type": "CONNECT"}, ensure_ascii=False)
+}))
+ss.send(json_to_protobuf({
+	'protocol_version' : 0,
+	'source_id' : 'sender-0',
+	'destination_id' : SESSION,
+	'namespace' : RECEIVER_URL,
+	'payload_type' : 0,
+	'payload_utf8' : json.dumps({"type": "GET_STATUS"}, ensure_ascii=False)
+}))
+ss.send(json_to_protobuf({
+	'protocol_version' : 0,
+	'source_id' : 'sender-0',
+	'destination_id' : SESSION,
+	'namespace' : RECEIVER_URL,
+	'payload_type' : 0,
+	'payload_utf8' : json.dumps({"type": "LAUNCH", "requestId": 1, "appId": APP_YOUTUBE}, ensure_ascii=False)
+}))
 
 while 1:
 	message_length = struct.unpack('>I', ss.recv(4))[0]
 	raw_message = ss.recv(message_length)
 
-	message = chromecast_pb2.CastMessage()
-	message.ParseFromString(raw_message)
+	message = protobuf_to_json({
+		'protocol_version' : int,
+		'source_id' : str,
+		'destination_id' : str,
+		'namespace' : str,
+		'payload_type' : int,
+		'payload_utf8' : str
+	}, raw_message)
 	
-	data = json.loads(message.payload_utf8)
-	print('Recieved:', data)
+	data = json.loads(message['payload_utf8'])
 
 	if 'type' in data and data['type'].lower() == 'ping':
-		send(ss, HEARTBEAT_URL, {"type": "PONG"})
+		ss.send(json_to_protobuf({
+			'protocol_version' : 0,
+			'source_id' : 'sender-0',
+			'destination_id' : SESSION,
+			'namespace' : HEARTBEAT_URL,
+			'payload_type' : 0,
+			'payload_utf8' : json.dumps({"type": "PONG"}, ensure_ascii=False)
+		}))
 	elif 'type' in data and data['type'].lower() == 'receiver_status':
 		if 'status' in data and 'applications' in data['status'] and data['status']['applications'][0]['appId'] == APP_YOUTUBE:
 			## YouTube has launched.
 			## We need to connect to that newly launched session.
 			SESSION = data['status']['applications'][0]['sessionId']
 
-			send(ss, CONNECT_URL, {"type": "CONNECT"}) # Connect with the new SESSION id
-			send(ss, YOUTUBE_URL, {'type': 'getMdxSessionStatus'}) # Get the lounge ID
+			ss.send(json_to_protobuf({
+				'protocol_version' : 0,
+				'source_id' : 'sender-0',
+				'destination_id' : SESSION,
+				'namespace' : CONNECT_URL,
+				'payload_type' : 0,
+				'payload_utf8' : json.dumps({"type": "CONNECT"}, ensure_ascii=False)
+			}))
+			ss.send(json_to_protobuf({
+				'protocol_version' : 0,
+				'source_id' : 'sender-0',
+				'destination_id' : SESSION,
+				'namespace' : YOUTUBE_URL,
+				'payload_type' : 0,
+				'payload_utf8' : json.dumps({'type': 'getMdxSessionStatus'}, ensure_ascii=False)
+			}))
 
 	elif 'type' in data and data['type'].lower() == 'mdxsessionstatus':
 		## Get the lounge_id (screen_id) from the current YouTube session on the chromecast

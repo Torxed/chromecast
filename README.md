@@ -74,25 +74,25 @@ Those fields are:
 
 And the order is very important. Because the field_id is in the data stream and they need to come in a certain order to match on both sides.
 
-The names however can be anything, but the type - meaning - and order are important.<br>
-But the names are just for your convenience and you can decide to call them whatever you want.
+The names however can be anything, but the type - meaning - and order is important.<br>
+But the names are just for your convenience and you can decide to name them whatever you want.
 
 ### protocol_version
 
-Protocol version just tells chromecast which protocol to talk. Currently that's `v2.1.0` which is represented by the int `0`. So a loneley ZERO (0) deines that.
+Protocol version just tells chromecast which protocol to talk. Currently that's `v2.1.0` which is represented by the int `0`. So a lonely ZERO (0) defines that.
 
 ### source_id
 
-Source ID is the sender *(or cast:er's)* id. This can *probably (??)* be anything you want.<br>
+Source ID is the sender *(or caster's)* id. This can *probably (!?)* be anything you want.<br>
 But in reality the magic keyword of `sender-0` seams to do the trick.
 
 ### destination_id
 
 This field changes depending on what casting-state you're in.<br>
-It starts off with the magic keyword of `reciever-0` but once an application has been launched,
+It starts off with the magic keyword of `receiver-0` but once an application has been launched,
 this should be changed to whatever the instance-id is of that application - letting the chromecast know you're talking to the application and not the chromecast.
 
-There's also a magic keyword `Tr@n$p0rt-0` which feels like an odd design choice. But is used by the chromecast to send heartbeat information in the shape of `{"type":"PING"}` with the sender and reciever-id's being `Tr@n$p0rt-0`. Not sure why, seams like an odd implementation thing.
+There's also a magic keyword `Tr@n$p0rt-0` which feels like an odd design choice. But is used by the chromecast to send heartbeat information in the shape of `{"type":"PING"}` with the sender and receiver-id's being `Tr@n$p0rt-0`. Not sure why, seams like an odd implementation thing.
 
 ### namespace
 
@@ -100,7 +100,7 @@ Namespace is the URN *(or URI/URL if you're more familiar with those terms)* in 
 
 ### payload_type
 
-The payload type can be two different types. `bytes` or `utf8` strings. I think chromecast supports both. But sticking to `utf8` strings are quite simple and works for most cases talking to the youtube app heh. So keep the type `0` for `utf8` strings *(`1` for `bytes` payloads as a reference)*.
+The payload type can be two different types, either `bytes` or `utf8` strings. I think chromecast supports both. But sticking to `utf8` strings are quite simple and works for most cases talking to the youtube app heh. So keep the type `0` for `utf8` strings *(`1` for `bytes` payloads as a reference)*.
 
 ### payload_utf8
 

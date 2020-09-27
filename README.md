@@ -22,7 +22,7 @@ None, pure vanilla Python 3+ is all you need.
 
 # Usage
 
-    python chromecast.py <ip to cheomcast> <video id>
+    python chromecast.py <ip to chromecast> <video id>
 
 For instance:
 

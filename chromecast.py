@@ -38,7 +38,7 @@ context.check_hostname = False
 context.verify_mode = ssl.CERT_NONE
 
 s = socket()
-s.connect(('172.16.13.3', 8009))
+s.connect((sys.argv[1], 8009))
 ss = context.wrap_socket(s)
 
 def json_to_protobuf(data):
@@ -257,7 +257,7 @@ while 1:
 						"_currentTime": "0",
 						"_currentIndex": -1,
 						"_audioOnly": "false",
-						"_videoId": sys.argv[1],
+						"_videoId": sys.argv[2],
 						"count": 1}
 		url_params = {"SID": SID, "gsessionid": GSESSION_ID,
 						"RID": 1, "VER": 8, "CVER": 1}

@@ -7,11 +7,11 @@ None, pure vanilla Python 3+ is all you need.
 
 # Usage
 
-    python chromecast.py <video id>
+    python chromecast.py <ip to cheomcast> <video id>
 
 For instance:
 
-    python chromecast.py ZTidn2dBYbY
+    python chromecast.py 192.168.0.10 ZTidn2dBYbY
 
 # Note on ProtoBuf, chromecast and alternatives
 

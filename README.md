@@ -27,6 +27,8 @@ For instance:
 
     python chromecast.py 192.168.0.10 ZTidn2dBYbY
 
+*Note:* To find your chromecasts, you can use `avahi-browse -tr _googlecast._tcp` or `nmap --open -sS -Pn -n -p 8009 192.168.0.0/24` *(Replace the subnet with your own and look for `8009/tcp open`)*.
+
 # Note on ProtoBuf, chromecast and alternatives
 
 Two things, one, just use [pychromecast](https://github.com/home-assistant-libs/pychromecast) or [casttube](https://github.com/ur1katz/casttube). They're more fully fledged.<br>

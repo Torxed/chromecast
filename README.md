@@ -1,5 +1,5 @@
 # chromecast
-As vanilla as it gets, cast a youtube video to a chromecast without any dependencies *(No Google or Google-ProtoBuf libs required)*
+As vanilla as it gets, cast a youtube (or custom url) video to a chromecast without any dependencies *(No Google or Google-ProtoBuf libs required)*
 
 - [Dependencies](#dependencies)
 - [Usage](#usage)
@@ -18,15 +18,19 @@ As vanilla as it gets, cast a youtube video to a chromecast without any dependen
 
 # Dependencies
 
-None, pure vanilla Python 3+ is all you need.
+None! this script is written in pure vanilla Python 3+.
 
 # Usage
 
-    python chromecast.py <ip to chromecast> <video id>
+    python chromecast.py <ip to chromecast> <YouTube video id>
 
 For instance:
 
     python chromecast.py 192.168.0.10 ZTidn2dBYbY
+
+Or feed a custom mp4 URL to the script *(Currently mp4 is a hardcoded header until I figure something out)*:
+
+    python chromecast.py 192.168.0.10 http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
 
 *Note:* To find your chromecasts, you can use `avahi-browse -tr _googlecast._tcp` or `nmap --open -sS -Pn -n -p 8009 192.168.0.0/24` *(Replace the subnet with your own and look for `8009/tcp open`)*.
 
@@ -96,11 +100,11 @@ There's also a magic keyword `Tr@n$p0rt-0` which feels like an odd design choice
 
 ### namespace
 
-Namespace is the URN *(or URI/URL if you're more familiar with those terms)* in which you want to call or talk to. Lets say you want to talk to the YouTube app, you need a namespace URN of: `urn:x-cast:com.google.youtube.mdx` in order to let the chromecast know you want to talk to the YouTube app. All applications have their own URN's, and I don't know how you can find those other than [finding URN's in other libraries](https://github.com/home-assistant-libs/pychromecast/blob/0c1d904ab15b91922c8ac45cb7e6641201910578/pychromecast/controllers/plex.py#L178).
+Namespace is the URN *(or URI/URL if you're more familiar with those terms)* in which you want to call or talk to. Lets say you want to talk to the YouTube app, you need a namespace URN of: `urn:x-cast:com.google.youtube.mdx` in order to let the chromecast know you want to talk to the YouTube app. All applications have their own URN's, and I don't know how you can find those other than [finding URN's in other libraries](https://github.com/home-assistant-libs/pychromecast/blob/0c1d904ab15b91922c8ac45cb7e6641201910578/pychromecast/controllers/plex.py#L178) or listening for the `namespaces` response when launching an app *(which requires you to know an app ID to launch)*.
 
 ### payload_type
 
-The payload type can be two different types, either `bytes` or `utf8` strings. I think chromecast supports both. But sticking to `utf8` strings are quite simple and works for most cases talking to the youtube app heh. So keep the type `0` for `utf8` strings *(`1` for `bytes` payloads as a reference)*.
+The payload type can be two different types, either `bytes` or `utf8` strings. I think chromecast supports both. But sticking to `utf8` strings are quite simple and works for most cases talking to the youtube and the generic media app heh. So keep the type `0` for `utf8` strings *(`1` for `bytes` payloads as a reference)*.
 
 ### payload_utf8
 

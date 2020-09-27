@@ -32,7 +32,14 @@ CONNECT_URL = 'urn:x-cast:com.google.cast.tp.connection'
 HEARTBEAT_URL = 'urn:x-cast:com.google.cast.tp.heartbeat'
 YOUTUBE_URL = 'urn:x-cast:com.google.youtube.mdx'
 RECEIVER_URL = 'urn:x-cast:com.google.cast.receiver'
-#MEDIA_URL = 'urn:x-cast:com.google.cast.media'
+GENERIC_MEDIA_URL = 'urn:x-cast:com.google.cast.media'
+
+if 'http' in VIDEO_ID and ('youtu.be' in VIDEO_ID or 'youtube.com' in VIDEO_ID):
+	print('Setting up YouTube for launch.')
+	LAUNCH_APP = APP_YOUTUBE
+else:
+	print('Setting up Default Media app for launch.')
+	LAUNCH_APP = APP_MEDIA_RECIEVER
 
 COOKIE = None
 
@@ -44,10 +51,23 @@ s = socket()
 s.connect((CHROMECAST_IP, 8009))
 ss = context.wrap_socket(s)
 
+def varint(number):
+	# Source: https://github.com/fmoo/python-varint/blob/99b4d9262a0f1b46fad3b3bf60c7a15e7a031df2/varint.py#L26-L37
+	"""Pack `number` into varint bytes"""
+	buf = b''
+	while True:
+		towrite = number & 0x7f
+		number >>= 7
+		if number:
+			buf += bytes((towrite | 0x80, ))
+		else:
+			buf += bytes((towrite, ))
+			break
+	return buf
+
 def json_to_protobuf(data):
 	"""
 	Extremely simplified JSON -> ProtoBuf serializer.
-	It doesn't support dict lengths larger than 164 bytes in any given string field.
 
 	src: https://developers.google.com/protocol-buffers/docs/encoding
 
@@ -77,7 +97,7 @@ def json_to_protobuf(data):
 		elif type(val) is str:
 			wire_type = 0b00000010
 
-			segment = struct.pack('B', len(val)) + bytes(val, 'UTF-8')
+			segment = varint(len(val)) + bytes(val, 'UTF-8')
 
 		serialized += struct.pack('B', MSB|field_number|wire_type) + segment
 
@@ -169,7 +189,7 @@ ss.send(json_to_protobuf({
 	'destination_id' : SESSION,
 	'namespace' : RECEIVER_URL,
 	'payload_type' : 0,
-	'payload_utf8' : json.dumps({"type": "LAUNCH", "requestId": 1, "appId": APP_YOUTUBE}, ensure_ascii=False)
+	'payload_utf8' : json.dumps({"type": "LAUNCH", "requestId": 1, "appId": LAUNCH_APP}, ensure_ascii=False)
 }))
 
 while 1:
@@ -186,6 +206,8 @@ while 1:
 	}, raw_message)
 	
 	data = json.loads(message['payload_utf8'])
+
+	print(data)
 
 	if 'type' in data and data['type'].lower() == 'ping':
 		ss.send(json_to_protobuf({
@@ -218,7 +240,53 @@ while 1:
 				'payload_type' : 0,
 				'payload_utf8' : json.dumps({'type': 'getMdxSessionStatus'}, ensure_ascii=False)
 			}))
+		elif 'status' in data and 'applications' in data['status'] and data['status']['applications'][0]['appId'] == APP_MEDIA_RECIEVER:
+			print('Got session for generic media app', data)
+			SESSION = data['status']['applications'][0]['sessionId']
 
+			# Connect to the new Generic media player sessionId.
+			ss.send(json_to_protobuf({
+				'protocol_version' : 0,
+				'source_id' : 'sender-0',
+				'destination_id' : SESSION,
+				'namespace' : CONNECT_URL,
+				'payload_type' : 0,
+				'payload_utf8' : json.dumps({"type": "CONNECT"}, ensure_ascii=False)
+			}))
+
+	# Generic media player section:
+	elif 'type' in data and data['type'] == 'MEDIA_STATUS' and data['status'] == []:
+		# If we recieve a MEDIA_STATUS that is empty,
+		# It means it's ready to play something.
+
+		# https://developers.google.com/cast/docs/reference/messages#MediaData
+		video_payload = {
+			'type' : 'LOAD',
+			'media' : {
+				"contentId": VIDEO_ID,
+				"streamType": 'BUFFERED',
+				"contentType": 'video/mp4',
+				"metadata": {
+					"title" : "something",
+					"images" : [{"url": "https://i.imgur.com/FmIbdI0.jpeg"}]
+				}
+			},
+			# "currentTime" : 0, # Defauklts to 0
+			# "autoplay" : True, # Default is True
+			"customData" : {},
+			"requestId" : 3
+		}
+
+		ss.send(json_to_protobuf({
+			'protocol_version' : 0,
+			'source_id' : 'sender-0',
+			'destination_id' : SESSION,
+			'namespace' : GENERIC_MEDIA_URL,
+			'payload_type' : 0,
+			'payload_utf8' : json.dumps(video_payload, ensure_ascii=False)
+		}))
+
+	# YouTube specific query/response section:
 	elif 'type' in data and data['type'].lower() == 'mdxsessionstatus':
 		## Got the lounge_id (screen_id) from the current YouTube session on the chromecast.
 		## We need this to HTTP-bind to the lounge and insert video_id's into the lounge.

@@ -34,12 +34,12 @@ YOUTUBE_URL = 'urn:x-cast:com.google.youtube.mdx'
 RECEIVER_URL = 'urn:x-cast:com.google.cast.receiver'
 GENERIC_MEDIA_URL = 'urn:x-cast:com.google.cast.media'
 
-if 'http' in VIDEO_ID and ('youtu.be' in VIDEO_ID or 'youtube.com' in VIDEO_ID):
-	print('Setting up YouTube for launch.')
-	LAUNCH_APP = APP_YOUTUBE
-else:
+if 'http' in VIDEO_ID and 'youtu.be' not in VIDEO_ID and not 'youtube.com' in VIDEO_ID:
 	print('Setting up Default Media app for launch.')
 	LAUNCH_APP = APP_MEDIA_RECIEVER
+else:
+	print('Setting up YouTube for launch.')
+	LAUNCH_APP = APP_YOUTUBE
 
 COOKIE = None
 
@@ -207,8 +207,6 @@ while 1:
 	
 	data = json.loads(message['payload_utf8'])
 
-	print(data)
-
 	if 'type' in data and data['type'].lower() == 'ping':
 		ss.send(json_to_protobuf({
 			'protocol_version' : 0,
@@ -222,6 +220,7 @@ while 1:
 		if 'status' in data and 'applications' in data['status'] and data['status']['applications'][0]['appId'] == APP_YOUTUBE:
 			## YouTube has launched.
 			## We need to connect to that newly launched session.
+			print('YouTube app has launched on the chromecast.')
 			SESSION = data['status']['applications'][0]['sessionId']
 
 			ss.send(json_to_protobuf({
@@ -241,7 +240,7 @@ while 1:
 				'payload_utf8' : json.dumps({'type': 'getMdxSessionStatus'}, ensure_ascii=False)
 			}))
 		elif 'status' in data and 'applications' in data['status'] and data['status']['applications'][0]['appId'] == APP_MEDIA_RECIEVER:
-			print('Got session for generic media app', data)
+			print('Generic media player app has launched on the chromecast.')
 			SESSION = data['status']['applications'][0]['sessionId']
 
 			# Connect to the new Generic media player sessionId.
@@ -259,6 +258,7 @@ while 1:
 		# If we recieve a MEDIA_STATUS that is empty,
 		# It means it's ready to play something.
 
+		print(f'Starting generic video: {VIDEO_ID}')
 		# https://developers.google.com/cast/docs/reference/messages#MediaData
 		video_payload = {
 			'type' : 'LOAD',
@@ -327,7 +327,7 @@ while 1:
 		GSESSION_ID = gsessionid.group(1)
 
 		# Once we've got a access token, are bound to the lounge - we can start a video.
-		print(f'Starting video {VIDEO_ID}')
+		print(f'Starting YouTube video {VIDEO_ID}')
 
 		request_data = {"_listId": "",
 						"__sc": "setPlaylist",

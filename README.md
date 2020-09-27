@@ -14,6 +14,7 @@ As vanilla as it gets, cast a youtube video to a chromecast without any dependen
     + [namespace](#namespace)
     + [payload_type](#payload_type)
     + [payload_utf8](#payload_utf8)
+- [Honorable mentions](#Honorable_mentions)
 
 # Dependencies
 
@@ -110,3 +111,10 @@ For instance, the `{"type": "CONNECT"}` payload is meant to connect a session to
 The different data payloads, in which order they come/should be sent can be seen in this very crude flowchart:
 
 ![flowchart](flowchart.png)
+
+# Honorable mentions
+
+ * [Perth Linux User Group](http://plug.org.au/)'s [talk from 2016](https://docs.google.com/presentation/d/1X1BdFunVnLkF7L0BgevH2zzkcSe0_gtdTJ_pMdEuakQ/htmlpresent).
+ * [pychromecast](https://github.com/home-assistant-libs/pychromecast) Which had a lot of `URN`'s that could be re-used.
+ * [casttube](https://github.com/ur1katz/casttube) Which had all the YouTube Web-API's to manage a YouTube lounge.
+ * Google for making the [ProtoBuf](https://developers.google.com/protocol-buffers/docs/encoding) protocol very open and easy to deconstruct.

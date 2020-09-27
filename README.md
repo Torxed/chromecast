@@ -32,7 +32,7 @@ For instance:
 
 # Note on ProtoBuf, chromecast and alternatives
 
-Two things, one, just use [pychromecast](https://github.com/home-assistant-libs/pychromecast) or [casttube](https://github.com/ur1katz/casttube). They're more fully fledged.<br>
+Two things. The first being - just use [pychromecast](https://github.com/home-assistant-libs/pychromecast) or [casttube](https://github.com/ur1katz/casttube). They're more fully fledged.<br>
 
 Secondly, Google heavily uses their open protocol called [protobuf](https://developers.google.com/protocol-buffers/docs/encoding).<br>
 It's essentially just a `struct` -> `bytes` serializer. I've included a very crude serializer & de-serializer for sending and reading protobuf streams. A quick overview of how that works would be:

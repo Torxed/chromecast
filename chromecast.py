@@ -266,10 +266,10 @@ while 1:
 				"contentId": VIDEO_ID,
 				"streamType": 'BUFFERED',
 				"contentType": 'video/mp4',
-				"metadata": {
-					"title" : "something",
-					"images" : [{"url": "https://i.imgur.com/FmIbdI0.jpeg"}]
-				}
+				#"metadata": {
+				#	"title" : "something",
+				#	"images" : [{"url": "https://"}]
+				#}
 			},
 			# "currentTime" : 0, # Defauklts to 0
 			# "autoplay" : True, # Default is True

@@ -1,5 +1,5 @@
 # chromecast
-As vanilla as it gets, cast a youtube (or custom url) video to a chromecast without any dependencies *(No Google or Google-ProtoBuf libs required)*
+As vanilla as it gets, cast a youtube *(or custom)* video to a chromecast without any dependencies *(No Google or Google-ProtoBuf libs required)*
 
 - [Dependencies](#dependencies)
 - [Usage](#usage)

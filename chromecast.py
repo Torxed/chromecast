@@ -4,11 +4,14 @@ import struct
 import json
 import re
 import sys
+import urllib.request
+import urllib.parse
 from socket import *
-from urllib import request, parse
+#from urllib import request, parse
 from collections import OrderedDict
 
-#import chromecast_pb2 # Build this with: protoc --python_out=./ chromecast.proto
+CHROMECAST_IP = sys.argv[1]
+VIDEO_ID = sys.argv[2]
 
 APP_MEDIA_RECIEVER = 'CC1AD845' # Default media-player, eats anything more or less
 APP_YOUTUBE = '233637DE' # Youtube specific player
@@ -38,7 +41,7 @@ context.check_hostname = False
 context.verify_mode = ssl.CERT_NONE
 
 s = socket()
-s.connect((sys.argv[1], 8009))
+s.connect((CHROMECAST_IP, 8009))
 ss = context.wrap_socket(s)
 
 def json_to_protobuf(data):
@@ -217,59 +220,65 @@ while 1:
 			}))
 
 	elif 'type' in data and data['type'].lower() == 'mdxsessionstatus':
-		## Get the lounge_id (screen_id) from the current YouTube session on the chromecast
-		## We need this to insert video_id's into the lounge.
+		## Got the lounge_id (screen_id) from the current YouTube session on the chromecast.
+		## We need this to HTTP-bind to the lounge and insert video_id's into the lounge.
 		SCREEN_ID = data['data']['screenId']
-		DEVICE_ID = data['data']['deviceId']
+		# DEVICE_ID = data['data']['deviceId']
 
-		# Do a HTTPS post to the lounge API: https://github.com/ur1katz/casttube/blob/08021a0f15fcd1c34c286acc9b903e2e9174a89b/casttube/YouTubeSession.py
-		data = parse.urlencode({"screen_ids": SCREEN_ID}).encode()
-		req =  request.Request("https://www.youtube.com/api/lounge/pairing/get_lounge_token_batch", data=data)
-		resp = request.urlopen(req)
-		lounge_data = json.loads(resp.read().decode('UTF-8'))
+		# -- HTTP stuff --
+		# * Access Token *
+		# Execute a HTTPS post to to get a Access Token for the lounge ID started by the chromecast.
+		http_post_payload = urllib.parse.urlencode({"screen_ids": SCREEN_ID}).encode()
+		http_request_obj =  urllib.request.Request("https://www.youtube.com/api/lounge/pairing/get_lounge_token_batch", data=http_post_payload)
+		http_response = urllib.request.urlopen(http_request_obj)
+		lounge_json_data = json.loads(http_response.read().decode('UTF-8'))
 
-		# Grab the lounge token so we have a key that allows
-		# us to insert videos.
-		LOUNGE_TOKEN = lounge_data['screens'][0]['loungeToken']
+		# Store the Access Token
+		LOUNGE_TOKEN = lounge_json_data['screens'][0]['loungeToken']
 
-		params = parse.urlencode({'RID': 0, 'VER': 8, 'CVER': 1})
-		headers = {'X-YouTube-LoungeId-Token' : LOUNGE_TOKEN}
-		url = "https://www.youtube.com/api/lounge/bc/bind?%s" % params
-		data = parse.urlencode(YOUTUBE_API_BIND_DATA).encode()
-		req =  request.Request(url, data=data, headers=headers)
-		resp = request.urlopen(req)
-		bind_raw_data = resp.read().decode('UTF-8')
-		for key, val in resp.getheaders():
+		# * Bind to lounge *
+		# Execute a HTTP post to bind a Cookie session to the lounge using the access token.
+		http_url_query = urllib.parse.urlencode({'RID': 0, 'VER': 8, 'CVER': 1})
+		http_post_headers = {'X-YouTube-LoungeId-Token' : LOUNGE_TOKEN}
+		bind_url = "https://www.youtube.com/api/lounge/bc/bind?%s" % http_url_query
+		http_post_payload = urllib.parse.urlencode(YOUTUBE_API_BIND_DATA).encode()
+		http_request_obj =  urllib.request.Request(bind_url, data=http_post_payload, headers=http_post_headers)
+		http_response = urllib.request.urlopen(http_request_obj)
+		
+		# Store the session-cookie:
+		bind_raw_data = http_response.read().decode('UTF-8')
+		for key, val in http_response.getheaders():
 			if key.lower() == 'set-cookie':
-				print(val)
 				COOKIE = val.split(';',1)[0].strip()
 
+		# Find the SID and gsessionid - located in a weirdly formatted HTTP response (chunked transfer encoding)
 		sid = re.search(SID_REGEX, bind_raw_data)
 		gsessionid = re.search(GSESSION_ID_REGEX, bind_raw_data)
 		
 		SID = sid.group(1)
 		GSESSION_ID = gsessionid.group(1)
 
-		print('Starting a video..')
+		# Once we've got a access token, are bound to the lounge - we can start a video.
+		print(f'Starting video {VIDEO_ID}')
 
 		request_data = {"_listId": "",
 						"__sc": "setPlaylist",
 						"_currentTime": "0",
 						"_currentIndex": -1,
 						"_audioOnly": "false",
-						"_videoId": sys.argv[2],
+						"_videoId": VIDEO_ID,
 						"count": 1}
 		url_params = {"SID": SID, "gsessionid": GSESSION_ID,
 						"RID": 1, "VER": 8, "CVER": 1}
 		request_data = _format_session_params(0, request_data)
 
-		params = parse.urlencode(url_params)
-		headers = {'X-YouTube-LoungeId-Token' : LOUNGE_TOKEN, 'Cookie' : COOKIE}
-		url = "https://www.youtube.com/api/lounge/bc/bind?%s" % params
-		data = parse.urlencode(request_data).encode()
-		req =  request.Request(url, data=data, headers=headers)
-		resp = request.urlopen(req)
+		http_url_query = urllib.parse.urlencode(url_params)
+		http_post_headers = {'X-YouTube-LoungeId-Token' : LOUNGE_TOKEN, 'Cookie' : COOKIE}
+		bind_url = "https://www.youtube.com/api/lounge/bc/bind?%s" % http_url_query
+		http_post_payload = urllib.parse.urlencode(request_data).encode()
+		http_request_obj =  urllib.request.Request(bind_url, data=http_post_payload, headers=http_post_headers)
+		http_response = urllib.request.urlopen(http_request_obj)
 
-		video_play_raw_data = resp.read().decode('UTF-8')
+		video_play_raw_data = http_response.read().decode('UTF-8')
 		
 	time.sleep(0.5)

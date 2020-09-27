@@ -1,6 +1,10 @@
 # chromecast
 As vanilla as it gets, cast a youtube video to a chromecast without any dependencies *(No Google or Google-ProtoBuf libs required)*
 
+# Dependencies
+
+None, pure vanilla Python 3+ is all you need.
+
 # Usage
 
     python chromecast.py <video id>
